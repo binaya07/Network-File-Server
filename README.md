@@ -2,9 +2,19 @@
 
 This repository contains the implementation of a simple network file server using C and socket programming. The application demonstrates basic network communication between a client and a server in a Linux environment.
 
-## Getting Started
-
-These instructions will guide you through setting up and running the project on your local machine for development and testing purposes.
+### Server and Client Functionality
+   **Server**: Maintains a repository accessible to the client.
+   
+   **Client Commands**:
+   ```
+        ls - List subdirectories and files in the current directory.
+        cd - Change the current working directory.
+        cwd - Show the current working directory path.
+        mkdir - Create a subdirectory in the current directory.
+        rm - Delete a subdirectory or file in the current directory.
+        up - Upload a file from the client to the current directory on the server.
+        down - Download a file from the current directory on the server.
+   ```
 
 ### Prerequisites
 - C/C++ compiler (gcc or similar)
@@ -24,8 +34,8 @@ These instructions will guide you through setting up and running the project on 
    Navigate to the cloned directory, and compile both the server and client applications:
 
    ```sh
-   gcc server.cpp -o server
-   gcc client.cpp -o client
+   gcc server.c -o server
+   gcc client.c -o client
    ```
 
 ### Running the Application
@@ -46,9 +56,4 @@ These instructions will guide you through setting up and running the project on 
    ./client
    ```
 
-   The client will connect to the server, send a message, and receive a response.
-
-## Features
-
-- **Server**: Listens for connections and responds to client requests.
-- **Client**: Connects to the server, sends a message, and receives a response.
+   The client will connect to the server and can send above listed commands to the server.

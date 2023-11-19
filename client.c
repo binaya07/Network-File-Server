@@ -3,46 +3,78 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <signal.h>
 
 #define PORT 8080
 
-int main(int argc, char const* argv[])
-{
-	int status, valread, client_fd;
-	struct sockaddr_in serv_addr;
-	char* hello = "Hello from client";
-	char buffer[1024] = { 0 };
-    
-	if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		printf("\n Socket creation error \n");
-		return -1;
-	}
+int createSocket() {
+    return socket(AF_INET, SOCK_STREAM, 0);
+}
 
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
+void setupServerAddress(struct sockaddr_in *servAddr) {
+    servAddr->sin_family = AF_INET;
+    servAddr->sin_port = htons(PORT);
+    if (inet_pton(AF_INET, "127.0.0.1", &servAddr->sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+}
 
-	// Convert IPv4 and IPv6 addresses from text to binary
-	// form
-	if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)
-		<= 0) {
-		printf(
-			"\nInvalid address/ Address not supported \n");
-		return -1;
-	}
+void connectToServer(int clientFd, struct sockaddr_in servAddr) {
+    if (connect(clientFd, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) {
+        perror("Connection Failed");
+        exit(EXIT_FAILURE);
+    }
+}
 
-	if ((status
-		= connect(client_fd, (struct sockaddr*)&serv_addr,
-				sizeof(serv_addr)))
-		< 0) {
-		printf("\nConnection Failed \n");
-		return -1;
-	}
-	send(client_fd, hello, strlen(hello), 0);
-	printf("Hello message sent\n");
-	valread = read(client_fd, buffer, 1024 - 1); // subtract 1 for the null terminator at the end
-	printf("%s\n", buffer);
+void sendMessage(int clientFd, const char *message) {
+    if (send(clientFd, message, strlen(message), 0) < 0) {
+        perror("Send failed");
+        exit(EXIT_FAILURE);
+    }
+}
 
-	// closing the connected socket
-	close(client_fd);
-	return 0;
+void receiveMessage(int clientFd) {
+    char buffer[1024] = { 0 };
+    ssize_t valRead = read(clientFd, buffer, sizeof(buffer) - 1); // Subtract 1 for null terminator
+    if (valRead < 0) {
+        perror("Read failed");
+        exit(EXIT_FAILURE);
+    }
+    printf("%s\n", buffer);
+}
+
+void handleSignal(int sig) {
+	exit(EXIT_FAILURE);
+}
+
+int main(int argc, char const *argv[]) {
+    int clientFd;
+    struct sockaddr_in servAddr;
+	char message[1024];
+
+	// Handler for process kill in terminal
+    signal(SIGINT, handleSignal);
+
+	// Socket setup
+    clientFd = createSocket();
+    if (clientFd < 0) {
+        perror("Socket creation error");
+        return -1;
+    }
+
+    setupServerAddress(&servAddr);
+    connectToServer(clientFd, servAddr);
+
+	// Get commands from terminal, send to server and print response
+	while (1) {
+        printf("Enter command: ");
+        fgets(message, sizeof(message), stdin);
+        sendMessage(clientFd, message);
+        receiveMessage(clientFd);
+    }
+
+    close(clientFd);
+    return 0;
 }
