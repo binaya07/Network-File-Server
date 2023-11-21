@@ -83,6 +83,7 @@ void createServerHomeDirectory() {
 
 void handleClientCommand(int clientSocket) {
     char buffer[1024] = {0};
+    char* unknownCmdMsg = "Unknown command";
     ssize_t valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
     if (valRead < 0) {
         perror("Read failed");
@@ -103,28 +104,25 @@ void handleClientCommand(int clientSocket) {
         }
     }
     else if (strcmp(buffer, "ls") == 0) {
-        printf("1");
-        // FILE *fp;
-        // char path[1035];
-        // printf("1");
-        // fp = popen("ls server_home", "r");
-        // printf("2");
-        // if (fp == NULL) {
-        //     perror("Failed to run command");
-        //     exit(EXIT_FAILURE);
-        // }
+        FILE *fp;
+        char path[1035];
+        fp = popen("ls", "r");
+        if (fp == NULL) {
+            perror("Failed to run command");
+            exit(EXIT_FAILURE);
+        }
 
-        // // Read the output a line at a time - send it to the client
-        // while (fgets(path, sizeof(path), fp) != NULL) {
-        //     printf("3");
-        //     send(clientSocket, path, strlen(path), 0);
-        // }
+        // Read the output a line at a time - send it to the client
+        while (fgets(path, sizeof(path), fp) != NULL) {
+            send(clientSocket, path, strlen(path), 0);
+        }
 
-        // pclose(fp);
-    } else {
+        pclose(fp);
+    } 
+    // TODO: make initial location to server_home, implement other functions
+    else {
         // Other command handling
-        perror("Send failed");
-		exit(EXIT_FAILURE);
+        send(clientSocket, unknownCmdMsg, strlen(unknownCmdMsg), 0);
     }
 
     // if (send(clientSocket, helloMessage, strlen(helloMessage), 0) < 0) {
