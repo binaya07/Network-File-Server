@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <asm-generic/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define PORT 8080
 
@@ -64,12 +66,24 @@ int acceptConnection(int serverFd, struct sockaddr_in address) {
     return clientSocket;
 }
 
+void trimNewline(char *str) {
+    int len = strlen(str);
+    if (len > 0 && str[len - 1] == '\n') {
+        str[len - 1] = '\0';
+    }
+}
+
+void createServerHomeDirectory() {
+    struct stat st = {0};
+
+    if (stat("server_home", &st) == -1) {
+        mkdir("server_home", 0700);
+    }
+}
+
 void handleClientCommand(int clientSocket) {
     char buffer[1024] = {0};
-    ssize_t valRead;
-    char *helloMessage = "Hello from server";
-
-    valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
+    ssize_t valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
     if (valRead < 0) {
         perror("Read failed");
         exit(EXIT_FAILURE);
@@ -77,23 +91,56 @@ void handleClientCommand(int clientSocket) {
 
     buffer[valRead] = '\0';
     printf("Received command: %s", buffer);
+    trimNewline(buffer);
 
-    if (valRead < 0) {
-        perror("Read failed");
-        exit(EXIT_FAILURE);
+    if (strcmp(buffer, "cwd") == 0) {
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            send(clientSocket, cwd, strlen(cwd), 0);
+        } else {
+            perror("getcwd() error");
+            exit(EXIT_FAILURE);
+        }
     }
+    else if (strcmp(buffer, "ls") == 0) {
+        printf("1");
+        // FILE *fp;
+        // char path[1035];
+        // printf("1");
+        // fp = popen("ls server_home", "r");
+        // printf("2");
+        // if (fp == NULL) {
+        //     perror("Failed to run command");
+        //     exit(EXIT_FAILURE);
+        // }
 
-    if (send(clientSocket, helloMessage, strlen(helloMessage), 0) < 0) {
+        // // Read the output a line at a time - send it to the client
+        // while (fgets(path, sizeof(path), fp) != NULL) {
+        //     printf("3");
+        //     send(clientSocket, path, strlen(path), 0);
+        // }
+
+        // pclose(fp);
+    } else {
+        // Other command handling
         perror("Send failed");
 		exit(EXIT_FAILURE);
-    } else {
-        printf("Hello message sent\n");
     }
+
+    // if (send(clientSocket, helloMessage, strlen(helloMessage), 0) < 0) {
+    //     perror("Send failed");
+	// 	exit(EXIT_FAILURE);
+    // } else {
+    //     printf("Hello message sent\n");
+    // }
 }
 
 int main(int argc, char const *argv[]) {
     struct sockaddr_in address;
     int serverFd, clientSocket;
+
+    // Creates a server_home directory
+    createServerHomeDirectory();
 
 	// Handler for process kill in terminal
     signal(SIGINT, handleSignal);
@@ -109,6 +156,7 @@ int main(int argc, char const *argv[]) {
 	if(clientSocket < 0) {
             perror("Accept failed - server shutting down");
     } else {
+		// Listen to client commands and handle them
 		while (1) {
         	handleClientCommand(clientSocket);	
 		}
