@@ -85,9 +85,49 @@ void createServerHomeDirectory() {
     }
 }
 
+void handleCwd(int clientSocket) {
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        send(clientSocket, cwd, strlen(cwd), 0);
+    } else {
+        perror("getcwd() error");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void handleLs(int clientSocket) {
+    FILE *fp;
+    char path[1035];
+    int count = 0;
+    fp = popen("ls", "r");
+    if (fp == NULL) {
+        perror("Failed to run command");
+        exit(EXIT_FAILURE);
+    }
+    // Read the output a line at a time - send it to the client
+    while (fgets(path, sizeof(path), fp) != NULL) {
+        send(clientSocket, path, strlen(path), 0);
+        count++;
+    }
+    if (count == 0) {
+        const char *noContentMsg = "No Contents";
+        send(clientSocket, noContentMsg, strlen(noContentMsg), 0);
+    }
+    pclose(fp);
+}
+
+void handleCd(int clientSocket, char* argument) {
+    if (chdir(argument) != 0) {
+        // Send error message back to client
+        const char *errorMsg = "Error changing directory";
+        send(clientSocket, errorMsg, strlen(errorMsg), 0);
+    } else {
+        handleCwd(clientSocket);
+    }
+}
+
 void handleClientCommand(int clientSocket) {
     char buffer[1024] = {0};
-    char* unknownCmdMsg = "Unknown command";
     ssize_t valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
     if (valRead < 0) {
         perror("Read failed");
@@ -98,64 +138,35 @@ void handleClientCommand(int clientSocket) {
     printf("Received command: %s", buffer);
     trimNewline(buffer);
 
+    char *command = strtok(buffer, " ");
+    char *argument = strtok(NULL, " ");
+
     if (strcmp(buffer, "cwd") == 0) {
-        char cwd[1024];
-        if (getcwd(cwd, sizeof(cwd)) != NULL) {
-            send(clientSocket, cwd, strlen(cwd), 0);
-        } else {
-            perror("getcwd() error");
-            exit(EXIT_FAILURE);
-        }
+        handleCwd(clientSocket);
     }
     else if (strcmp(buffer, "ls") == 0) {
-        FILE *fp;
-        char path[1035];
-        fp = popen("ls", "r");
-        if (fp == NULL) {
-            perror("Failed to run command");
-            exit(EXIT_FAILURE);
-        }
-
-        // Read the output a line at a time - send it to the client
-        while (fgets(path, sizeof(path), fp) != NULL) {
-            send(clientSocket, path, strlen(path), 0);
-        }
-        const char *noContentMsg = " ";
-        send(clientSocket, noContentMsg, strlen(noContentMsg), 0);
-        pclose(fp);
-    } 
-    // TODO: make initial location to server_home, implement other functions
-    else {
-        // Other command handling
+        handleLs(clientSocket);
+    } else if (strcmp(command, "cd") == 0) {
+        handleCd(clientSocket, argument);
+    } else {
+        char* unknownCmdMsg = "Unknown command";
         send(clientSocket, unknownCmdMsg, strlen(unknownCmdMsg), 0);
     }
-
-    // if (send(clientSocket, helloMessage, strlen(helloMessage), 0) < 0) {
-    //     perror("Send failed");
-	// 	exit(EXIT_FAILURE);
-    // } else {
-    //     printf("Hello message sent\n");
-    // }
 }
 
 int main(int argc, char const *argv[]) {
     struct sockaddr_in address;
     int serverFd, clientSocket;
-
     // Creates a server_home directory
     createServerHomeDirectory();
-
 	// Handler for process kill in terminal
     signal(SIGINT, handleSignal);
-
 	// Create socket and listen to incoming connection requests
     serverFd = createSocket();
     setupAddressStruct(&address);
     bindSocket(serverFd, address);
     startListening(serverFd);
-    
 	clientSocket = acceptConnection(serverFd, address);
-
 	if(clientSocket < 0) {
             perror("Accept failed - server shutting down");
     } else {
@@ -164,7 +175,6 @@ int main(int argc, char const *argv[]) {
         	handleClientCommand(clientSocket);	
 		}
 	}
-
     close(clientSocket);
     printf("Shutting down server\n");
     close(serverFd);
