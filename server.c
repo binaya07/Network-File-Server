@@ -79,6 +79,10 @@ void createServerHomeDirectory() {
     if (stat("server_home", &st) == -1) {
         mkdir("server_home", 0700);
     }
+    if (chdir("server_home") != 0) {
+        perror("Failed to change directory to server_home");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void handleClientCommand(int clientSocket) {
@@ -116,7 +120,8 @@ void handleClientCommand(int clientSocket) {
         while (fgets(path, sizeof(path), fp) != NULL) {
             send(clientSocket, path, strlen(path), 0);
         }
-
+        const char *noContentMsg = " ";
+        send(clientSocket, noContentMsg, strlen(noContentMsg), 0);
         pclose(fp);
     } 
     // TODO: make initial location to server_home, implement other functions

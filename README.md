@@ -3,7 +3,7 @@
 This repository contains the implementation of a simple network file server using C and socket programming. The application demonstrates basic network communication between a client and a server in a Linux environment.
 
 ### Server and Client Functionality
-   **Server**: Maintains a repository accessible to the client.
+   **Server**: Maintains a `server_home` directory accessible to the client.
    
    **Client Commands**:
    ```
