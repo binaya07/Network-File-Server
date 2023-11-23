@@ -126,6 +126,22 @@ void handleCd(int clientSocket, char* argument) {
     }
 }
 
+void handleMkdir(int clientSocket, char* argument) {
+    struct stat st = {0};
+    const char *msg;
+
+    if (stat(argument, &st) == -1) {
+        if (mkdir(argument, 0700) == 0) {
+            msg = "Created directory";
+        } else {
+            msg = "Failed creating directory.";
+        }
+    } else {
+        msg = "Directory exists";
+    } 
+    send(clientSocket, msg, strlen(msg), 0);
+}
+
 void handleClientCommand(int clientSocket) {
     char buffer[1024] = {0};
     ssize_t valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
@@ -143,11 +159,12 @@ void handleClientCommand(int clientSocket) {
 
     if (strcmp(buffer, "cwd") == 0) {
         handleCwd(clientSocket);
-    }
-    else if (strcmp(buffer, "ls") == 0) {
+    } else if (strcmp(buffer, "ls") == 0) {
         handleLs(clientSocket);
     } else if (strcmp(command, "cd") == 0) {
         handleCd(clientSocket, argument);
+    } else if (strcmp(command, "mkdir") == 0) {
+        handleMkdir(clientSocket, argument);
     } else {
         char* unknownCmdMsg = "Unknown command";
         send(clientSocket, unknownCmdMsg, strlen(unknownCmdMsg), 0);
