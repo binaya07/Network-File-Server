@@ -142,6 +142,31 @@ void handleMkdir(int clientSocket, char* argument) {
     send(clientSocket, msg, strlen(msg), 0);
 }
 
+void handleRm(int clientSocket, char* argument) {
+    struct stat st;
+    const char *msg; 
+    if (stat(argument, &st) == 0) {
+        if (S_ISDIR(st.st_mode)) {
+            // It's a directory
+            if (rmdir(argument) == 0) {
+                msg = "Directory removed successfully";
+            } else {
+                msg = "Error removing directory";
+            }
+        } else {
+            // It's a file
+            if (remove(argument) == 0) {
+                msg = "File removed successfully";
+            } else {
+                msg = "Error removing file";
+            }
+        }
+    } else {
+        msg = "File or directory does not exist";
+    }
+    send(clientSocket, msg, strlen(msg), 0);
+}
+
 void handleClientCommand(int clientSocket) {
     char buffer[1024] = {0};
     ssize_t valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
@@ -165,6 +190,8 @@ void handleClientCommand(int clientSocket) {
         handleCd(clientSocket, argument);
     } else if (strcmp(command, "mkdir") == 0) {
         handleMkdir(clientSocket, argument);
+    } else if (strcmp(command, "rm") == 0) {
+        handleRm(clientSocket, argument);
     } else {
         char* unknownCmdMsg = "Unknown command";
         send(clientSocket, unknownCmdMsg, strlen(unknownCmdMsg), 0);
