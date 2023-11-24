@@ -80,6 +80,31 @@ void uploadFile(int clientFd, char *cmd) {
     fclose(file);
 }
 
+void downloadFile(int clientFd, char *cmd) {
+    char buffer[1024];
+    char filePath[1024];
+ 
+    // Send filename to server 
+    sendMessage(clientFd, cmd);
+
+    strncpy(filePath, cmd + 5, sizeof(filePath) - 1);
+    trimNewline(filePath);
+
+    FILE *file = fopen(filePath, "wb");
+    if (!file) {
+        // Handle error
+        printf("Error downloading file.");
+        return;
+    }
+
+    // Receive file data
+    size_t valRead;
+    valRead = read(clientFd, buffer, sizeof(buffer));
+    fwrite(buffer, sizeof(char), valRead, file);
+    // Close file
+    fclose(file);
+}
+
 int main(int argc, char const *argv[]) {
     int clientFd;
     struct sockaddr_in servAddr;
@@ -104,6 +129,8 @@ int main(int argc, char const *argv[]) {
         fgets(message, sizeof(message), stdin);
         if (strncmp(message, "up ", 3) == 0) {
             uploadFile(clientFd, message);
+        } else if (strncmp(message, "down ", 5) == 0) {
+            downloadFile(clientFd, message);
         } else {
             sendMessage(clientFd, message);
         }

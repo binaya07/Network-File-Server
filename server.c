@@ -193,6 +193,31 @@ void handleFileUpload(int clientSocket, char* fileName) {
     fclose(file);
 }
 
+void handleFileDownload(int clientSocket, char* fileName) {
+    char *msg;
+    char buffer[1024];
+
+    if (fileName == NULL) {
+        msg = "No filename provided.";
+        send(clientSocket, msg, strlen(msg), 0);
+    }
+  
+    FILE *file = fopen(fileName, "rb");
+    if (!file) {
+        // Handle error
+        printf("Error uploading file");
+        return;
+    }
+
+    // Send file data
+    size_t bytesRead = fread(buffer, sizeof(char), sizeof(buffer), file);
+    send(clientSocket, buffer, bytesRead, 0);
+    fclose(file);
+
+    msg = "Downloaded file.";
+    send(clientSocket, msg, strlen(msg), 0);
+}
+
 void handleClientCommand(int clientSocket) {
     char buffer[1024] = {0};
     ssize_t valRead = read(clientSocket, buffer, sizeof(buffer) - 1);
@@ -220,6 +245,8 @@ void handleClientCommand(int clientSocket) {
         handleRm(clientSocket, argument);
     } else if (strcmp(command, "up") == 0) {
         handleFileUpload(clientSocket, argument);
+    } else if (strcmp(command, "down") == 0) {
+        handleFileDownload(clientSocket, argument);
     } else {
         char* unknownCmdMsg = "Unknown command";
         send(clientSocket, unknownCmdMsg, strlen(unknownCmdMsg), 0);
