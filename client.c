@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 
 #define PORT 8080
 
@@ -49,6 +50,36 @@ void handleSignal(int sig) {
 	exit(EXIT_FAILURE);
 }
 
+void trimNewline(char *str) {
+    int len = strlen(str);
+    if (len > 0 && str[len - 1] == '\n') {
+        str[len - 1] = '\0';
+    }
+}
+
+
+void uploadFile(int clientFd, char *cmd) {
+    char buffer[1024];
+    char filePath[1024];
+    strncpy(filePath, cmd + 3, sizeof(filePath) - 1);
+    trimNewline(filePath);
+
+    FILE *file = fopen(filePath, "rb");
+    if (!file) {
+        // Handle error
+        printf("Error uploading file.");
+        return;
+    }
+    // Send file name with cmd
+    sendMessage(clientFd, cmd);
+    // Send file data
+    size_t bytesRead;
+    bytesRead = fread(buffer, sizeof(char), sizeof(buffer), file);
+    send(clientFd, buffer, bytesRead, 0);
+    // Send end of file transfer indication
+    fclose(file);
+}
+
 int main(int argc, char const *argv[]) {
     int clientFd;
     struct sockaddr_in servAddr;
@@ -71,7 +102,11 @@ int main(int argc, char const *argv[]) {
 	while (1) {
         printf("Enter command: ");
         fgets(message, sizeof(message), stdin);
-        sendMessage(clientFd, message);
+        if (strncmp(message, "up ", 3) == 0) {
+            uploadFile(clientFd, message);
+        } else {
+            sendMessage(clientFd, message);
+        }
         receiveMessage(clientFd);
     }
 

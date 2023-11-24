@@ -144,7 +144,7 @@ void handleMkdir(int clientSocket, char* argument) {
 
 void handleRm(int clientSocket, char* argument) {
     struct stat st;
-    const char *msg; 
+    char *msg; 
     if (stat(argument, &st) == 0) {
         if (S_ISDIR(st.st_mode)) {
             // It's a directory
@@ -165,6 +165,32 @@ void handleRm(int clientSocket, char* argument) {
         msg = "File or directory does not exist";
     }
     send(clientSocket, msg, strlen(msg), 0);
+}
+
+void handleFileUpload(int clientSocket, char* fileName) {
+    char *msg;
+    char buffer[1024];
+    ssize_t valRead;
+
+    if (fileName == NULL) {
+        msg = "No filename provided.";
+        send(clientSocket, msg, strlen(msg), 0);
+    }
+  
+    FILE *file = fopen(fileName, "wb");
+    if (!file) {
+        // Handle error
+        printf("Error uploading file");
+        return;
+    }
+
+    // Receive file data
+    valRead = read(clientSocket, buffer, sizeof(buffer));
+    fwrite(buffer, sizeof(char), valRead, file);
+    
+    msg = "Uploaded file.";
+    send(clientSocket, msg, strlen(msg), 0);
+    fclose(file);
 }
 
 void handleClientCommand(int clientSocket) {
@@ -192,6 +218,8 @@ void handleClientCommand(int clientSocket) {
         handleMkdir(clientSocket, argument);
     } else if (strcmp(command, "rm") == 0) {
         handleRm(clientSocket, argument);
+    } else if (strcmp(command, "up") == 0) {
+        handleFileUpload(clientSocket, argument);
     } else {
         char* unknownCmdMsg = "Unknown command";
         send(clientSocket, unknownCmdMsg, strlen(unknownCmdMsg), 0);
